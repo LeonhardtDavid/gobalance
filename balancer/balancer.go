@@ -87,7 +87,7 @@ func handler(timeout time.Duration, balancerType configurations.BalancerType, de
 			Timeout: timeout * time.Millisecond,
 		}
 		request, _ := http.NewRequest(r.Method, url+r.RequestURI, r.Body)
-		// request.WithContext(r.Context())
+		request.WithContext(r.Context())
 
 		copyHeaders(r.Header, request.Header)
 

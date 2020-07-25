@@ -7,8 +7,9 @@ import (
 
 func main() {
 	config := configurations.Load()
+	server := balancer.Server{Config: config}
 
-	balancer.Run(config)
+	server.Run()
 
 	select {}
 }

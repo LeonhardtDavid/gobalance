@@ -1,0 +1,28 @@
+read-timeout-millis: 5000
+write-timeout-millis: 20000
+max-header-bytes: 0
+targets:
+  - domain: localhost
+    port: 8080
+    path: /
+    timeout-millis: 5000
+    type: RANDOM
+    destinations:
+      - host: localhost
+        port: 8000
+        secure: false
+      - host: google.com
+        port: 443
+        secure: true
+  - domain: localhost
+    port: 9000
+    path: /json
+    timeout-millis: 5000
+    type: ROUND_ROBIN
+    destinations:
+      - host: ip-api.com
+        port: 80
+        secure: false
+      - host: ipinfo.io
+        port: 443
+        secure: true

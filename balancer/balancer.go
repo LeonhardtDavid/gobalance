@@ -8,10 +8,12 @@ type Server struct {
 	Targets []configurations.Target
 }
 
+type RouterCreator = func(configurations.Target) Router
+
 // Creates different routers based in the given configuration.
-func (server *Server) Run(f func(configurations.Target) Router) {
+func (server *Server) Run(create RouterCreator) {
 	for _, target := range server.Targets {
-		router := f(target)
+		router := create(target)
 
 		strategy := RouteStrategy{balancerType: target.Type, destinations: target.Destinations}
 

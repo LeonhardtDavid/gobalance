@@ -5,22 +5,13 @@ import (
 )
 
 type Server struct {
-	Config configurations.Config
+	Targets []configurations.Target
 }
 
 // Creates different routers based in the given configuration.
-func (server *Server) Run() {
-	config := server.Config
-	for _, target := range config.Targets {
-		router := Router{
-			readTimeout:    config.ReadTimeout,
-			writeTimeout:   config.WriteTimeout,
-			maxHeaderBytes: config.MaxHeaderBytes,
-			requestTimeout: target.Timeout,
-			domain:         target.Domain,
-			port:           target.Port,
-			path:           target.Path,
-		}
+func (server *Server) Run(f func(configurations.Target) Router) {
+	for _, target := range server.Targets {
+		router := f(target)
 
 		strategy := RouteStrategy{balancerType: target.Type, destinations: target.Destinations}
 

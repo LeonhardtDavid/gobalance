@@ -9,29 +9,27 @@ import (
 	"time"
 )
 
-type Router struct {
-	readTimeout    time.Duration
-	writeTimeout   time.Duration
-	maxHeaderBytes int
-	requestTimeout time.Duration
-	domain         string
-	port           int
-	path           string
+type Router interface {
+	Run(strategy Strategy)
+}
+
+type RouterHandler struct {
+	ReadTimeout    time.Duration
+	WriteTimeout   time.Duration
+	RequestTimeout time.Duration
+	MaxHeaderBytes int
+	Domain         string
+	Port           int
+	Path           string
+	Client         Client
 }
 
 func handleError(w http.ResponseWriter) {
 	http.Error(w, "Error accessing service", http.StatusBadGateway)
 }
 
-func handleResponse(w http.ResponseWriter, response *http.Response) {
-	if body, err := ioutil.ReadAll(response.Body); err != nil {
-		log.Println("Error parsing response")
-		handleError(w)
-	} else {
-		w.WriteHeader(response.StatusCode)
-		copyHeaders(response.Header, w.Header())
-		w.Write(body)
-	}
+func handleResponseError(w http.ResponseWriter) {
+	http.Error(w, "Service response error", http.StatusBadGateway)
 }
 
 func copyHeaders(from http.Header, to http.Header) {
@@ -42,24 +40,39 @@ func copyHeaders(from http.Header, to http.Header) {
 	}
 }
 
-func (router *Router) handler(strategy RouteStrategy) func(w http.ResponseWriter, r *http.Request) {
+func handleResponse(w http.ResponseWriter, response *http.Response) {
+	if body, err := ioutil.ReadAll(response.Body); err != nil {
+		log.Println("Error parsing response")
+		handleResponseError(w)
+	} else {
+		w.WriteHeader(response.StatusCode)
+		copyHeaders(response.Header, w.Header())
+		w.Write(body)
+	}
+}
+
+func (router *RouterHandler) handler(strategy Strategy) http.HandlerFunc {
 	in := make(chan string)
 	out := make(chan string)
 
-	go strategy.handleNextDestination(in, out)
+	go func() {
+		log.Fatalln(strategy.handleNextDestination(in, out))
+	}()
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		in <- "next"
 		url := <-out
-		client := http.Client{
-			Timeout: router.requestTimeout * time.Millisecond,
+
+		options := ClientOptions{
+			timeout: router.RequestTimeout,
+			ctx:     r.Context(),
+			method:  r.Method,
+			url:     url + r.RequestURI,
+			body:    r.Body,
+			header:  r.Header,
 		}
-		request, _ := http.NewRequest(r.Method, url+r.RequestURI, r.Body)
-		request.WithContext(r.Context())
 
-		copyHeaders(r.Header, request.Header)
-
-		if response, err := client.Do(request); err != nil {
+		if response, err := router.Client.execute(options); err != nil {
 			log.Println("Error calling service", err)
 			handleError(w)
 		} else {
@@ -69,24 +82,24 @@ func (router *Router) handler(strategy RouteStrategy) func(w http.ResponseWriter
 	}
 }
 
-func (router *Router) Run(strategy RouteStrategy) {
+func (router *RouterHandler) Run(strategy Strategy) {
 	muxRouter := mux.NewRouter()
 
 	subRouter := muxRouter
-	if router.domain != "" {
-		subRouter = muxRouter.Host(router.domain).Subrouter()
+	if router.Domain != "" {
+		subRouter = muxRouter.Host(router.Domain).Subrouter()
 	}
 
-	subRouter.PathPrefix(router.path).HandlerFunc(router.handler(strategy))
+	subRouter.PathPrefix(router.Path).HandlerFunc(router.handler(strategy))
 
-	log.Println("Listening on port", router.port)
+	log.Println("Listening on Port", router.Port)
 
 	server := http.Server{
-		Addr:           fmt.Sprint(":", router.port),
+		Addr:           fmt.Sprint(":", router.Port),
 		Handler:        subRouter,
-		ReadTimeout:    router.readTimeout * time.Millisecond,
-		WriteTimeout:   router.writeTimeout * time.Millisecond,
-		MaxHeaderBytes: router.maxHeaderBytes,
+		ReadTimeout:    router.ReadTimeout,
+		WriteTimeout:   router.WriteTimeout,
+		MaxHeaderBytes: router.MaxHeaderBytes,
 	}
 
 	go func() {

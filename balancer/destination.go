@@ -4,14 +4,19 @@ import (
 	"fmt"
 	"github.com/LeonhardtDavid/gobalance/configurations"
 	"math/rand"
+	"time"
 )
+
+type Strategy interface {
+	handleNextDestination(in <-chan string, out chan<- string) error
+}
 
 type RouteStrategy struct {
 	balancerType configurations.BalancerType
 	destinations []configurations.Destination
 }
 
-func (rs *RouteStrategy) chooseBalancingStrategy() func(int) int {
+func (rs RouteStrategy) chooseBalancingStrategy() func(int) int {
 	length := len(rs.destinations)
 
 	switch rs.balancerType {
@@ -20,8 +25,10 @@ func (rs *RouteStrategy) chooseBalancingStrategy() func(int) int {
 			return (index + 1) % length
 		}
 	case configurations.Random:
+		source := rand.NewSource(time.Now().UnixNano())
+		random := rand.New(source)
 		return func(index int) int {
-			return rand.Intn(length)
+			return random.Intn(length)
 		}
 	default:
 		return func(index int) int {
@@ -30,7 +37,7 @@ func (rs *RouteStrategy) chooseBalancingStrategy() func(int) int {
 	}
 }
 
-func (rs *RouteStrategy) handleNextDestination(in <-chan string, out chan<- string) {
+func (rs RouteStrategy) handleNextDestination(in <-chan string, out chan<- string) error {
 	index := 0
 	nextDestination := rs.chooseBalancingStrategy()
 
@@ -51,4 +58,6 @@ func (rs *RouteStrategy) handleNextDestination(in <-chan string, out chan<- stri
 
 		index = nextDestination(index)
 	}
+
+	return fmt.Errorf("channel in has been closed")
 }

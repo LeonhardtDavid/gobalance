@@ -18,6 +18,9 @@ gobalance
 # Config file
 config.yml
 
+# Coverage reports
+coverage.*
+
 # IDEs
 .idea
 .vscode

@@ -1,4 +1,8 @@
 # gobalance
+
+[![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://david-leonhardt.mit-license.org/)
+[![Tests status](https://github.com/LeonhardtDavid/gobalance/workflows/Tests/badge.svg)](https://github.com/LeonhardtDavid/gobalance/actions?query=workflow%3ATests)
+
 Simple load balancer. Exercise took from  https://github.com/thewildcast/golang-primeros-pasos
 
 ## Running the project

@@ -45,8 +45,8 @@ func handleResponse(w http.ResponseWriter, response *http.Response) {
 		log.Println("Error parsing response")
 		handleResponseError(w)
 	} else {
-		w.WriteHeader(response.StatusCode)
 		copyHeaders(response.Header, w.Header())
+		w.WriteHeader(response.StatusCode)
 		w.Write(body)
 	}
 }
